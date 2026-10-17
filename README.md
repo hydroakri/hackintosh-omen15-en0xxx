@@ -31,7 +31,7 @@ BIOS:Above 4G Decoding 开,CSM 关(NullMoth 要求)。
 | 触摸板 | 可用(VoodooI2C 轮询模式,见下);手势、睡眠唤醒后的表现未充分测试 |
 | 声音 | 可用(AppleALC,`alcid=13`:喇叭和耳机都正常) |
 | 亮度滑块、Fn 亮度键 | 可用(见下;需要关闭"自动调节亮度") |
-| 电池 | 可用(SMCBatteryManager + ECEnabler):电量、电压、放电电流、剩余时间、循环次数可读;电池序列号显示为占位符 `SerialNumber`;放电时剩余电量的下降过程还在观察 |
+| 电池 | 可用(SMCBatteryManager + ECEnabler):电量、电压、放电电流、剩余时间、循环次数可读;电池序列号显示为占位符 `SerialNumber`;放电 10 分钟以上测过,剩余电量会正常下降;独显开着时功耗偏高 |
 | 睡眠唤醒 | 命令触发的短睡眠(约 13 秒)和合盖睡眠各测过一次,驱动、触摸板、声音、亮度、双显卡唤醒后都正常;更长时间的睡眠未测 |
 | 蓝牙 | 可用:控制器地址正常、状态 On,已配对并连接过设备(见下);长时间稳定性未测 |
 | 摄像头 | 预览有画面;Photo Booth 拍照时会闪退(崩在 AMD 核显的 OpenGL 驱动里,和摄像头本身无关) |
@@ -101,7 +101,7 @@ AX200 的蓝牙和 HP 摄像头都是主板上的内部 USB 设备,接在 `XHC0`
 - 两条 ACPI 补丁(`Count 1`,只改 DSDT 里 `XHC0` 的 `PRT3.UPC1` 和 `PRT4._UPC`)把第一个字节改成 1,让端口出现。补丁的查找串依赖这份 DSDT 的字节布局(BIOS F.28),换 BIOS 版本要重新核对。
 - `IntelBluetoothFirmware` 负责送固件,`IntelBTPatcher` 修 bluetoothd 的 LE 扫描问题,`BlueToolFixup` 让 macOS 12+ 接受第三方控制器。
 - **`IntelBluetoothInjector` 在 Monterey 及更新版本上不能用**(项目 FAQ 明说),所以它在配置里被限制为 `MaxKernel 21.99.99`,只在旧系统加载。一开始它被启用时,蓝牙设备会一直卡在初始化状态。
-- 另外写入了两个 NVRAM 变量 `bluetoothExternalDongleFailed`(`00`)和 `bluetoothInternalControllerInfo`(14 个零字节),来自上游 issue 评论。**它们是否必须还没有单独验证**,保留是为了确保能用;想精简可以删掉它们再测。
+- 另外写入了两个 NVRAM 变量 `bluetoothExternalDongleFailed`(`00`)和 `bluetoothInternalControllerInfo`(14 个零字节),来自上游 issue 评论。**它们是必须的**:对照实验里去掉这两个变量(并在开机时把已存的值删掉)后,固件虽然能加载,但 `bluetoothd` 把控制器当成 macOS 自带的内部芯片,表现为 `Address: NULL`、`State: Off`、`Chipset: BCM_4350C2`,蓝牙不工作。
 
 ## 安装 macOS
 
