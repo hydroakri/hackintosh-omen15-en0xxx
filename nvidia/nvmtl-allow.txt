@@ -1,0 +1,7 @@
+# First matching line wins, so deny lines must come before "*".
+# Processes listed with "-" get no NVIDIA Metal device (they stay on the AMD GPU).
+-Safari
+-mediaanalysisd
+-DuckDuckGo
+*
+!WindowServer
