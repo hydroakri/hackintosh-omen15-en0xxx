@@ -31,7 +31,9 @@ BIOS:Above 4G Decoding 开,CSM 关(NullMoth 要求)。
 | 触摸板 | 可用(VoodooI2C 轮询模式,见下);手势、睡眠唤醒后的表现未充分测试 |
 | 声音 | 可用(AppleALC,`alcid=13`:喇叭和耳机都正常) |
 | 亮度滑块、Fn 亮度键 | 可用(见下;需要关闭"自动调节亮度") |
-| 有线网卡、蓝牙、睡眠 | 配了对应 kext,**未测试** |
+| 电池 | 可用(SMCBatteryManager + ECEnabler):电量、电压、放电电流、剩余时间、循环次数可读;电池序列号显示为占位符 `SerialNumber`;放电时剩余电量的下降过程还在观察 |
+| 睡眠唤醒 | 命令触发的短睡眠(约 13 秒)和合盖睡眠各测过一次,驱动、触摸板、声音、亮度、双显卡唤醒后都正常;更长时间的睡眠未测 |
+| 有线网卡、蓝牙 | 配了对应 kext,**未测试**;蓝牙目前被识别成 `BCM_4350C2` 且地址为空,实际没有工作 |
 
 ## EFI 与三个配置
 
@@ -85,6 +87,11 @@ Synaptics I2C-HID 触摸板挂在 AMD I2C 控制器(`AMDI0010`)上,走 VoodooI2C
   用两条 ACPI 补丁把它们改名为 `XQ10`/`XQ11`,再由 `SSDT-BRTKEYS` 无条件发通知(源码在 `acpi-src/`;没有 `iasl` 的环境下手工汇编,建议自行用 `iasl` 编译对照)。
 - 光感是伪造的固定读数,**请在系统设置 > 显示器里关闭"自动调节亮度"**,否则它会和手动调节打架,控制中心的滑块也可能是灰的(重启 `ControlCenter` 进程可恢复)。
 
+### 电池
+
+电池字段在 EC 里是 16 位宽,而 macOS 的 AppleACPIEC 只读 8 位,所以单靠 `SMCBatteryManager` 读不到。再加 `ECEnabler`(允许读取大于 1 字节的 EC 字段)就能不改 DSDT 读出电量。
+拔掉电源后数据要过一小段时间才开始刷新。
+
 ## 安装 macOS
 
 1. 用 OpenCorePkg 自带的 `macrecovery` 下载 macOS 15 的恢复镜像,放到 U 盘。
@@ -130,7 +137,8 @@ Synaptics I2C-HID 触摸板挂在 AMD I2C 控制器(`AMDI0010`)上,走 VoodooI2C
 |---|---|---|
 | OpenCore(DEBUG 构建) | 1.0.8 | acidanthera/OpenCorePkg |
 | Lilu / VirtualSMC / AppleALC / VoodooPS2Controller | 1.7.2 / 1.3.8 / 1.9.8 / 2.3.7 | acidanthera |
-| SMCLightSensor / BrightnessKeys | 1.3.8 / 1.0.3 | acidanthera/VirtualSMC、acidanthera/BrightnessKeys |
+| SMCLightSensor / SMCBatteryManager / BrightnessKeys | 1.3.8 / 1.3.8 / 1.0.3 | acidanthera/VirtualSMC、acidanthera/BrightnessKeys |
+| ECEnabler | 1.0.6 | averycblack/ECEnabler(原 1Revenger1) |
 | SSDT-PNLF / SSDT-ALS0 | — | chefkiss.dev/Extras/SSDTs(NootedRed 官方指南) |
 | NootedRed | 0.8.10 | ChefKissInc/NootedRed |
 | ForgedInvariant | 1.5.0 | ChefKissInc/ForgedInvariant |
