@@ -34,7 +34,7 @@ BIOS:Above 4G Decoding 开,CSM 关(NullMoth 要求)。
 | 电池 | 可用(SMCBatteryManager + ECEnabler):电量、电压、放电电流、剩余时间、循环次数可读;电池序列号显示为占位符 `SerialNumber`;放电 10 分钟以上测过,剩余电量会正常下降;独显开着时功耗偏高 |
 | 睡眠唤醒 | 命令触发的短睡眠(约 13 秒)和合盖睡眠各测过一次,驱动、触摸板、声音、亮度、双显卡唤醒后都正常;更长时间的睡眠未测 |
 | 蓝牙 | 可用:控制器地址正常、状态 On,已配对并连接过设备(见下);长时间稳定性未测 |
-| 摄像头 | 预览有画面;Photo Booth 拍照时会闪退(崩在 AMD 核显的 OpenGL 驱动里,和摄像头本身无关) |
+| 摄像头 | 可用:预览、QuickTime 影片录制和保存正常;只有 Photo Booth 拍照后画缩略图条时会闪退(崩在 AMD 核显的 OpenGL 驱动里,和摄像头本身无关) |
 | 有线网卡 | 配了 `RealtekRTL8111`,**未测试** |
 
 ## EFI 与三个配置
@@ -46,6 +46,13 @@ BIOS:Above 4G Decoding 开,CSM 关(NullMoth 要求)。
 | `install` | 进入 Recovery / 安装 macOS | `NootedRed.kext` 关闭(它在 Recovery 环境下内屏黑屏,是上游已知问题) |
 | `stable` | 装好系统后的日常使用,**独显被隐藏** | 基准 |
 | `nvidia` | 使用 NVIDIA 驱动 | 启用 `AMFIPass`;`SSDT-NVIDIA-DISABLE` 关闭(不再隐藏独显);`IONDRVSupport` 加入 Kernel Block;boot-args 去掉 `-wegnoegpu`、加 `ipc_control_port_options=0` |
+
+### 开机输出与调试
+
+`stable` 和 `nvidia` 是安静启动(苹果标志加进度条),OpenCore 是 RELEASE 构建、不写日志。`install` 保留了详细输出,方便装机时看卡在哪。
+要在日常配置里临时打开详细输出,把启动参数加上 `-v debug=0x100 keepsyms=1`:`debug=0x100` 让内核恐慌时停在恐慌画面而不是自动重启,`keepsyms=1` 保留符号,方便解析恐慌日志。
+想看 OpenCore 自己的日志,要换成 DEBUG 构建的 `OpenCore.efi`、`OpenRuntime.efi` 等,并把 `Misc > Debug > Target` 设为 67(会往 EFI 分区写日志文件,内含 MAC、UUID,不要公开)。
+NullMoth 驱动首次启动可能在静止的苹果标志上停一分钟左右,不是卡死。
 
 ### 切换配置
 
@@ -146,7 +153,7 @@ AX200 的蓝牙和 HP 摄像头都是主板上的内部 USB 设备,接在 `XHC0`
 
 | 组件 | 版本 | 来源 |
 |---|---|---|
-| OpenCore(DEBUG 构建) | 1.0.8 | acidanthera/OpenCorePkg |
+| OpenCore(RELEASE 构建) | 1.0.8 | acidanthera/OpenCorePkg |
 | Lilu / VirtualSMC / AppleALC / VoodooPS2Controller | 1.7.2 / 1.3.8 / 1.9.8 / 2.3.7 | acidanthera |
 | SMCLightSensor / SMCBatteryManager / BrightnessKeys | 1.3.8 / 1.3.8 / 1.0.3 | acidanthera/VirtualSMC、acidanthera/BrightnessKeys |
 | ECEnabler | 1.0.6 | averycblack/ECEnabler(原 1Revenger1) |
