@@ -29,7 +29,9 @@ BIOS:Above 4G Decoding 开,CSM 关(NullMoth 要求)。
 | NVIDIA 独显 | 驱动可加载,Metal 3 / 6 GB;只验证了能识别和不崩溃,**稳定性、睡眠唤醒、外接屏长时间使用未充分测试** |
 | Wi-Fi | 可用(`itlwm` + [HeliPort](https://github.com/OpenIntelWireless/HeliPort),`AirportItlwm` 扫不到网络) |
 | 触摸板 | 可用(VoodooI2C 轮询模式,见下);手势、睡眠唤醒后的表现未充分测试 |
-| 有线网卡、蓝牙、音频、睡眠 | 配了对应 kext,**未测试** |
+| 声音 | 可用(AppleALC,`alcid=13`:喇叭和耳机都正常) |
+| 亮度滑块、Fn 亮度键 | 可用(见下;需要关闭"自动调节亮度") |
+| 有线网卡、蓝牙、睡眠 | 配了对应 kext,**未测试** |
 
 ## EFI 与三个配置
 
@@ -72,6 +74,17 @@ Synaptics I2C-HID 触摸板挂在 AMD I2C 控制器(`AMDI0010`)上,走 VoodooI2C
 - `VoodooGPIO` 只当依赖库加载,其 `Info.plist` 里的匹配项已清空。原版会匹配 `AMDI0030`(AMD GPIO 控制器),导致开机约 30 秒后自动重启。
 - `Kernel > Add` 顺序:`VoodooInput`、`VoodooGPIO`、`VoodooI2CServices`、`VoodooI2C`、`VoodooI2CHID`。依赖必须排在前面,缺 `VoodooInput` 则驱动能加载但光标不动。
 
+### 声音与亮度
+
+三个配置都已包含,要点:
+
+- **声音**:ALC245,AppleALC 里对应 HP Omen 的是布局 13,启动参数 `alcid=13`。
+- **亮度滑块**:NootedRed 只在笔记本 SMBIOS 下启用背光补丁,而这里用的是 `iMacPro1,1`,所以要加启动参数 `AMDBacklight=1`。
+  另外需要 NootedRed 指南里的官方 `SSDT-PNLF`(`_UID` 为 0x13)和 `SSDT-ALS0`,以及 `SMCLightSensor.kext`、`BrightnessKeys.kext`。
+- **Fn 亮度键**:DSDT 里 EC 的 `_Q10`/`_Q11` 只有在 `_OSI` 报告 Windows 版本时才向 LCD 发 0x87/0x86 通知,macOS 不报,所以键不起作用。
+  用两条 ACPI 补丁把它们改名为 `XQ10`/`XQ11`,再由 `SSDT-BRTKEYS` 无条件发通知(源码在 `acpi-src/`;没有 `iasl` 的环境下手工汇编,建议自行用 `iasl` 编译对照)。
+- 光感是伪造的固定读数,**请在系统设置 > 显示器里关闭"自动调节亮度"**,否则它会和手动调节打架,控制中心的滑块也可能是灰的(重启 `ControlCenter` 进程可恢复)。
+
 ## 安装 macOS
 
 1. 用 OpenCorePkg 自带的 `macrecovery` 下载 macOS 15 的恢复镜像,放到 U 盘。
@@ -97,7 +110,7 @@ Synaptics I2C-HID 触摸板挂在 AMD I2C 控制器(`AMDI0010`)上,走 VoodooI2C
    kmutil showloaded --list-only | grep nullmoth     # 应有 NVRM、NVRMFB、NVRMAGDC、NVAccel 四行
    system_profiler SPDisplaysDataType
    ```
-4. **设置 Metal 白/黑名单(重要)。** 驱动让所有进程都可以使用独显的 Metal,而 Safari 等基于 WebKit 的程序会因为
+4. **设置 Metal 白/黑名单(重要)。** 驱动让所有进程都可以使用独显的 Metal,而 Safari、Spotlight 等用 Metal 渲染的程序会因为
    NVK 的空指针(`nvk_UpdateDescriptorSets`)反复崩溃。把 `nvidia/nvmtl-allow.txt` 覆盖到驱动的允许列表:
    ```
    sudo cp nvidia/nvmtl-allow.txt /Library/GPUBundles/nvmtl-allow.txt
@@ -117,6 +130,8 @@ Synaptics I2C-HID 触摸板挂在 AMD I2C 控制器(`AMDI0010`)上,走 VoodooI2C
 |---|---|---|
 | OpenCore(DEBUG 构建) | 1.0.8 | acidanthera/OpenCorePkg |
 | Lilu / VirtualSMC / AppleALC / VoodooPS2Controller | 1.7.2 / 1.3.8 / 1.9.8 / 2.3.7 | acidanthera |
+| SMCLightSensor / BrightnessKeys | 1.3.8 / 1.0.3 | acidanthera/VirtualSMC、acidanthera/BrightnessKeys |
+| SSDT-PNLF / SSDT-ALS0 | — | chefkiss.dev/Extras/SSDTs(NootedRed 官方指南) |
 | NootedRed | 0.8.10 | ChefKissInc/NootedRed |
 | ForgedInvariant | 1.5.0 | ChefKissInc/ForgedInvariant |
 | SMCAMDProcessor / AMDRyzenCPUPowerManagement | 1.0.1 / 0.7.2 | trulyspinach/SMCAMDProcessor |

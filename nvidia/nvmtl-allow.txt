@@ -3,5 +3,6 @@
 -Safari
 -mediaanalysisd
 -DuckDuckGo
+-Spotlight
 *
 !WindowServer
