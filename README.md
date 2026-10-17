@@ -120,4 +120,8 @@ sudo rsync -a --delete EFI/ /Volumes/EFI/EFI/
 | AppleMCEReporterDisabler | — | Dortania 指南要求(AMD + iMacPro1,1 + macOS 12.3 及以上) |
 
 `itlwm.kext` 的 `Info.plist` 里没有预置 Wi-Fi 信息,网络在 HeliPort 里添加。
-所有 kext 均为各项目自己发布的 Release 二进制,使用前请自行核对许可证。
+所有 kext 均为各项目自己发布的 Release 二进制。
+
+## 许可证
+
+本仓库自己的配置、脚本和文档使用 MIT 许可证(见 `LICENSE`)。`EFI/` 里的 OpenCore 和各 kext 保持它们各自的许可证,使用前请自行核对。
