@@ -33,7 +33,9 @@ BIOS:Above 4G Decoding 开,CSM 关(NullMoth 要求)。
 | 亮度滑块、Fn 亮度键 | 可用(见下;需要关闭"自动调节亮度") |
 | 电池 | 可用(SMCBatteryManager + ECEnabler):电量、电压、放电电流、剩余时间、循环次数可读;电池序列号显示为占位符 `SerialNumber`;放电时剩余电量的下降过程还在观察 |
 | 睡眠唤醒 | 命令触发的短睡眠(约 13 秒)和合盖睡眠各测过一次,驱动、触摸板、声音、亮度、双显卡唤醒后都正常;更长时间的睡眠未测 |
-| 有线网卡、蓝牙 | 配了对应 kext,**未测试**;蓝牙目前被识别成 `BCM_4350C2` 且地址为空,实际没有工作 |
+| 蓝牙 | 可用:控制器地址正常、状态 On,已配对并连接过设备(见下);长时间稳定性未测 |
+| 摄像头 | 预览有画面;Photo Booth 拍照时会闪退(崩在 AMD 核显的 OpenGL 驱动里,和摄像头本身无关) |
+| 有线网卡 | 配了 `RealtekRTL8111`,**未测试** |
 
 ## EFI 与三个配置
 
@@ -92,6 +94,15 @@ Synaptics I2C-HID 触摸板挂在 AMD I2C 控制器(`AMDI0010`)上,走 VoodooI2C
 电池字段在 EC 里是 16 位宽,而 macOS 的 AppleACPIEC 只读 8 位,所以单靠 `SMCBatteryManager` 读不到。再加 `ECEnabler`(允许读取大于 1 字节的 EC 字段)就能不改 DSDT 读出电量。
 拔掉电源后数据要过一小段时间才开始刷新。
 
+### 蓝牙与摄像头
+
+AX200 的蓝牙和 HP 摄像头都是主板上的内部 USB 设备,接在 `XHC0` 的第 4、第 3 号端口。DSDT 把这两个端口的 `_UPC` 写成"不可连接"(第一个字节为 0),macOS 就不会创建它们,设备也就看不见。
+
+- 两条 ACPI 补丁(`Count 1`,只改 DSDT 里 `XHC0` 的 `PRT3.UPC1` 和 `PRT4._UPC`)把第一个字节改成 1,让端口出现。补丁的查找串依赖这份 DSDT 的字节布局(BIOS F.28),换 BIOS 版本要重新核对。
+- `IntelBluetoothFirmware` 负责送固件,`IntelBTPatcher` 修 bluetoothd 的 LE 扫描问题,`BlueToolFixup` 让 macOS 12+ 接受第三方控制器。
+- **`IntelBluetoothInjector` 在 Monterey 及更新版本上不能用**(项目 FAQ 明说),所以它在配置里被限制为 `MaxKernel 21.99.99`,只在旧系统加载。一开始它被启用时,蓝牙设备会一直卡在初始化状态。
+- 另外写入了两个 NVRAM 变量 `bluetoothExternalDongleFailed`(`00`)和 `bluetoothInternalControllerInfo`(14 个零字节),来自上游 issue 评论。**它们是否必须还没有单独验证**,保留是为了确保能用;想精简可以删掉它们再测。
+
 ## 安装 macOS
 
 1. 用 OpenCorePkg 自带的 `macrecovery` 下载 macOS 15 的恢复镜像,放到 U 盘。
@@ -139,6 +150,8 @@ Synaptics I2C-HID 触摸板挂在 AMD I2C 控制器(`AMDI0010`)上,走 VoodooI2C
 | Lilu / VirtualSMC / AppleALC / VoodooPS2Controller | 1.7.2 / 1.3.8 / 1.9.8 / 2.3.7 | acidanthera |
 | SMCLightSensor / SMCBatteryManager / BrightnessKeys | 1.3.8 / 1.3.8 / 1.0.3 | acidanthera/VirtualSMC、acidanthera/BrightnessKeys |
 | ECEnabler | 1.0.6 | averycblack/ECEnabler(原 1Revenger1) |
+| IntelBluetoothFirmware / IntelBTPatcher / IntelBluetoothInjector | 2.4.0 | OpenIntelWireless/IntelBluetoothFirmware |
+| BlueToolFixup | 2.7.2 | acidanthera/BrcmPatchRAM |
 | SSDT-PNLF / SSDT-ALS0 | — | chefkiss.dev/Extras/SSDTs(NootedRed 官方指南) |
 | NootedRed | 0.8.10 | ChefKissInc/NootedRed |
 | ForgedInvariant | 1.5.0 | ChefKissInc/ForgedInvariant |
