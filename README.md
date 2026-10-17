@@ -28,7 +28,7 @@ BIOS:Above 4G Decoding 开,CSM 关(NullMoth 要求)。
 | 内屏显示与硬件加速 | 可用(AMD,显存 512 MB) |
 | NVIDIA 独显 | 驱动可加载,Metal 3 / 6 GB;只验证了能识别和不崩溃,**稳定性、睡眠唤醒、外接屏长时间使用未充分测试** |
 | Wi-Fi | 可用(`itlwm` + [HeliPort](https://github.com/OpenIntelWireless/HeliPort),`AirportItlwm` 扫不到网络) |
-| 触摸板 | **不可用**(VoodooI2C 依赖的 VoodooGPIO 在这台 AMD 平台上会导致自动重启) |
+| 触摸板 | 可用(VoodooI2C 轮询模式,见下);手势、睡眠唤醒后的表现未充分测试 |
 | 有线网卡、蓝牙、音频、睡眠 | 配了对应 kext,**未测试** |
 
 ## EFI 与三个配置
@@ -63,6 +63,14 @@ sudo rsync -a --delete EFI/ /Volumes/EFI/EFI/
 1. 用 [GenSMBIOS](https://github.com/corpnewt/GenSMBIOS) 生成 `iMacPro1,1` 的序列号、MLB、UUID,ROM 填网卡 MAC 或任意 6 字节。
    写进 `EFI/OC/config.plist` 的 `PlatformInfo > Generic`(此后 `apply-profile.sh` 会保留它们)。
 2. `tools/apply-profile.sh install`,同步到 U 盘,从 U 盘启动。
+
+### 触摸板
+
+Synaptics I2C-HID 触摸板挂在 AMD I2C 控制器(`AMDI0010`)上,走 VoodooI2C,三个配置都已包含,要点:
+
+- 启动参数 `-vi2c-force-polling`:触摸板的中断接在 AMD GPIO 上,用轮询绕开,代价是多占一点 CPU。
+- `VoodooGPIO` 只当依赖库加载,其 `Info.plist` 里的匹配项已清空。原版会匹配 `AMDI0030`(AMD GPIO 控制器),导致开机约 30 秒后自动重启。
+- `Kernel > Add` 顺序:`VoodooInput`、`VoodooGPIO`、`VoodooI2CServices`、`VoodooI2C`、`VoodooI2CHID`。依赖必须排在前面,缺 `VoodooInput` 则驱动能加载但光标不动。
 
 ## 安装 macOS
 
@@ -115,7 +123,7 @@ sudo rsync -a --delete EFI/ /Volumes/EFI/EFI/
 | itlwm | 2.3.0 | OpenIntelWireless/itlwm |
 | IntelBluetoothFirmware / Injector | 2.4.0 | OpenIntelWireless/IntelBluetoothFirmware |
 | RealtekRTL8111 | 2.4.2 | Mieze/RTL8111_driver_for_OS_X |
-| VoodooI2C / HID / Synaptics | 2.9.1 / 1.0 / 1.0 | VoodooI2C |
+| VoodooI2C / HID / Synaptics(含 VoodooInput 1.1.6、VoodooGPIO、VoodooI2CServices) | 2.9.1 / 1.0 / 1.0 | VoodooI2C |
 | AMFIPass | 1.4.1 | Dortania OpenCore-Legacy-Patcher 仓库的 payload |
 | AppleMCEReporterDisabler | — | Dortania 指南要求(AMD + iMacPro1,1 + macOS 12.3 及以上) |
 
